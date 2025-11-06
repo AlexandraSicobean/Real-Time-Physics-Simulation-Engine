@@ -137,6 +137,7 @@ void SceneCloth::reset()
             double tx = i*edgeX - 0.5*clothWidth;
             double ty = j*edgeY - 0.5*clothHeight;
             //Vec3 pos = Vec3(ty+edgeY, 70 - tx - edgeX, 0);
+            // I chose to display it horizontally
             Vec3 pos = Vec3(tx, 70, ty);
 
             Particle* p = new Particle();

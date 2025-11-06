@@ -178,6 +178,14 @@ void SceneProjectiles::update(double dt) {
         p->vel    = Vec3(shotSpeed*std::cos(shotAngle),
                          shotSpeed*std::sin(shotAngle) - gravityAccel*t, 0);
 
+        if (p->pos.y() < 0) {
+            // resolve
+            // TODO
+            p->pos += Vec3(0, p->radius, 0);
+
+            // stop sim for this system
+            system1active = false;
+        }
         trajectoryAnalytic.push_back(p->pos);
         if (trajectoryAnalytic.size() > MAX_TRAJ_POINTS) trajectoryAnalytic.pop_front();
     }
@@ -194,6 +202,7 @@ void SceneProjectiles::update(double dt) {
         if (p->pos.y() < 0) {
             // resolve
             // TODO
+            p->pos += Vec3(0, p->radius, 0);
 
             // stop sim for this system
             system1active = false;
@@ -215,6 +224,7 @@ void SceneProjectiles::update(double dt) {
         if (p->pos.y() < 0) {
             // resolve
             // TODO
+            p->pos += Vec3(0, p->radius, 0);
 
             // stop sim for this system
             system2active = false;

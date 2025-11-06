@@ -6,6 +6,7 @@ void ForceConstAcceleration::apply() {
     }
 }
 
+
 void ForceDrag::apply() {
     for (Particle* p : particles) {
         Vec3 v = p->vel;
@@ -15,18 +16,18 @@ void ForceDrag::apply() {
 
 void ForceSpring::apply() {
     if (particles.size() < 2) return;
+
     Particle* p1 = getParticle1();
     Particle* p2 = getParticle2();
 
-    Vec3 dp = p2->pos - p1->pos;
-    double dist = dp.norm();
-    if (dist < 1e-8) return;
+    double d = (p2->pos - p1->pos).norm();
+    if (d < 1e-8) return;
 
-    Vec3 dir = dp / dist;
     Vec3 dv = p2->vel - p1->vel;
-    double relVel = dv.dot(dir);
+    double relVel = dv.dot((p2->pos - p1->pos).normalized());
 
-    Vec3 F = ks * (dist - L) * dir + kd * relVel * dir;
+    Vec3 F = ks * (d - L) * (p2->pos - p1->pos).normalized()
+             + kd * relVel * (p2->pos - p1->pos).normalized();
 
     p1->force += F;
     p2->force -= F;
@@ -38,15 +39,13 @@ void ForceGravitation::apply() {
     for (Particle* p : particles) {
         if (p == attractor) continue;
 
-        Vec3 r_vec = attractor->pos - p->pos;
-        double r = r_vec.norm();
-        if (r < 1e-6) continue;
+        double d = (attractor->pos - p->pos).norm();
+        if (d < 1e-8) continue;
 
-        Vec3 dir = r_vec / r;
+        double smoothFactor = (2.0 / (1.0 + std::exp(-a * (d*d) / (b*b)))) - 1.0;
+        Vec3 F = G * (p->mass * attractor->mass) * smoothFactor /
+                 (d*d) * (attractor->pos - p->pos).normalized();
 
-        double smoothFactor = (2.0 / (1.0 + std::exp(-a * (r*r) / (b*b)))) - 1.0;
-
-        Vec3 F = G * (p->mass * attractor->mass) * smoothFactor / (r*r) * dir;
         p->force += F;
     }
 }

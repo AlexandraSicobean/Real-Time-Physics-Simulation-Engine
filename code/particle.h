@@ -17,6 +17,7 @@ public:
     double life   = 0.0;
     Vec3 color    = Vec3(1, 1, 1);
     unsigned int id = 0;
+    bool isBoundary = false;
 
     double density;
     double pressure;

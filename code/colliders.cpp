@@ -37,9 +37,8 @@ bool ColliderPlane::testCollision(const Particle* p, Collision& colInfo) const {
     if (d0 * d1 > 0.0) return false;
 
     double lambda = d0 / (d0 - d1);
-    Vec3 p_hit = p->prevPos + lambda * (p->pos - p->prevPos);
 
-    colInfo.position = p_hit;
+    colInfo.position = p->prevPos + lambda * (p->pos - p->prevPos);
     colInfo.normal = planeN;
     return true;
 }
@@ -101,7 +100,7 @@ bool ColliderAABB::isInside(const Particle* p) const
 
 bool ColliderAABB::testCollision(const Particle* p, Collision& colInfo) const
 {
-    Vec3 v = p->pos - p->prevPos;
+    Vec3 dir = p->pos - p->prevPos;
     Vec3 minR = bmin - Vec3(p->radius, p->radius, p->radius);
     Vec3 maxR = bmax + Vec3(p->radius, p->radius, p->radius);
 
@@ -109,25 +108,29 @@ bool ColliderAABB::testCollision(const Particle* p, Collision& colInfo) const
     int hitAxis = -1;
 
     for (int i = 0; i < 3; ++i) {
-        if (v[i] == 0) continue;
-        double t1 = (minR[i] - p->prevPos[i]) / v[i];
-        double t2 = (maxR[i] - p->prevPos[i]) / v[i];
-        if (t1 > t2) std::swap(t1, t2);
+        if (dir[i] == 0) continue;
+        double t1 = (minR[i] - p->prevPos[i]) / dir[i];
+        double t2 = (maxR[i] - p->prevPos[i]) / dir[i];
 
-        if (t1 > t_enter) { t_enter = t1; hitAxis = i; }
+        if (t1 > t2) std::swap(t1, t2);
+        if (t1 > t_enter) {
+            t_enter = t1;
+            hitAxis = i;
+        }
         t_exit = std::min(t_exit, t2);
-        if (t_enter > t_exit) return false;
+        if (t_enter > t_exit)
+            return false;
     }
 
     if (t_enter < 0.0 || t_enter > 1.0) return false;
 
-    colInfo.position = p->prevPos + t_enter * v;
+    colInfo.position = p->prevPos + t_enter * dir;
     colInfo.normal = Vec3(0, 0, 0);
 
-    Vec3 dir = v.normalized();
-    if (hitAxis == 0) colInfo.normal.x() = (dir.x() > 0 ? -1 : 1);
-    if (hitAxis == 1) colInfo.normal.y() = (dir.y() > 0 ? -1 : 1);
-    if (hitAxis == 2) colInfo.normal.z() = (dir.z() > 0 ? -1 : 1);
+    Vec3 dirN = dir.normalized();
+    if (hitAxis == 0) colInfo.normal.x() = (dirN.x() > 0 ? -1 : 1);
+    if (hitAxis == 1) colInfo.normal.y() = (dirN.y() > 0 ? -1 : 1);
+    if (hitAxis == 2) colInfo.normal.z() = (dirN.z() > 0 ? -1 : 1);
 
     return true;
 }
@@ -139,18 +142,19 @@ GridId ColliderParticle::getGridId(const Vec3 &pos) const {
 }
 
 void ColliderParticle::resolveParticleCollision(Particle* p1, Particle* p2, double kElastic) {
-    Vec3 delta = p2->pos - p1->pos;
-    double dist = delta.norm();
+    double d = (p2->pos - p1->pos).norm();
     double minDist = p1->radius + p2->radius;
-    if (dist <= 0.0 || dist >= minDist) return;
+    if (d <= 0.0 || d >= minDist)
+        return;
 
-    Vec3 n = delta / dist;
-    double penetration = minDist - dist;
+    Vec3 n = (p2->pos - p1->pos) / d;
+    // Particle correction if they bump into each other
+    double penetration = minDist - d;
     p1->pos -= 0.5 * penetration * n;
     p2->pos += 0.5 * penetration * n;
 
-    Vec3 relVel = p1->vel - p2->vel;
-    double vn = relVel.dot(n);
+    Vec3 v = p1->vel - p2->vel;
+    double vn = v.dot(n);
     if (vn > 0) return;
 
     double j = -(1 + kElastic) * vn * 0.5;
@@ -161,6 +165,7 @@ void ColliderParticle::resolveParticleCollision(Particle* p1, Particle* p2, doub
 void ColliderParticle::resolveAllCollisions(ParticleSystem& system, double kElastic) {
     grid.clear();
     auto& particles = system.getParticles();
+    // Do the mapping between each particle and the grid cell
     for (auto* p : particles)
         grid[getGridId(p->pos)].push_back(p);
 
@@ -170,7 +175,8 @@ void ColliderParticle::resolveAllCollisions(ParticleSystem& system, double kElas
         for (int dx : dirs)
             for (int dy : dirs)
                 for (int dz : dirs) {
-                    GridId nId = {id.x+dx, id.y+dy, id.z+dz};
+                    GridId nId = {id.x + dx, id.y + dy, id.z + dz};
+                    // If not out of bounds
                     if (grid.find(nId) == grid.end()) continue;
 
                     auto& A = cell.second;

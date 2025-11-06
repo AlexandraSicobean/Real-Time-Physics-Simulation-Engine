@@ -47,15 +47,20 @@ protected:
     unsigned int numFacesSphere = 0;
 
     ParticleSystem system;
-    IntegratorEuler integrator;
+    IntegratorSymplecticEuler integrator;
     ForceConstAcceleration* fGravity = nullptr;
 
-    // SPH parameters
-    double restDensity = 1000.0;
-    double stiffness   = 2000.0;
-    double viscosity   = 0.1;
-    double smoothingRadius = 10.0;
-    double particleMass = 1.0;
+    double restDensity      = 1000.0;
+    double viscosity        = 0.001;
+    double speedOfSound     = 5.0;
+    double particleRadius   = 0.02;
+    double spacing          = particleRadius * 2.1;
+    double smoothingRadius  = spacing * 2.0;
+    double particleMass     = 0.8 * restDensity * pow(spacing, 3);
+
+    double sceneScale       = 100.0;
+    double halfSize         = 0.25;
+    double fillHeight       = 0.25;
 
     // Colliders
     QOpenGLVertexArrayObject* vaoCube = nullptr;
@@ -66,9 +71,6 @@ protected:
     ColliderPlane colliderFront;
     ColliderPlane colliderBack;
 
-
-    Vec3 tapPosition;
-    double emitRate;
     double maxParticleLife;
     std::list<Particle*> deadParticles;
 
@@ -76,7 +78,6 @@ protected:
 
     void computeDensityAndPressure();
     void computeForces();
-    void emitParticles(double dt);
 };
 
 #endif // SCENEFLUID_H

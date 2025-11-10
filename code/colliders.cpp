@@ -22,12 +22,8 @@ void Collider::resolveCollision(Particle* p, const Collision& col, double kElast
 /*
  * Plane
  */
-bool ColliderPlane::isInside(const Particle* p) const
-{
-    if (planeN.dot(p->pos) + planeD <= p->radius)
-        return true;
-    return false;
-
+bool ColliderPlane::isInside(const Particle* p) const {
+    return planeN.dot(p->pos) + planeD <= p->radius;
 }
 
 
@@ -48,11 +44,8 @@ bool ColliderPlane::testCollision(const Particle* p, Collision& colInfo) const {
 /*
  * Sphere
  */
-bool ColliderSphere::isInside(const Particle* p) const
-{
-    if ((p->pos - center).norm() < radius + p->radius)
-        return true;
-    return false;
+bool ColliderSphere::isInside(const Particle* p) const {
+    return (p->pos - center).norm() < radius + p->radius;
 }
 
 
@@ -90,42 +83,55 @@ bool ColliderSphere::testCollision(const Particle* p, Collision& colInfo) const 
 /*
  * AABB
  */
-bool ColliderAABB::isInside(const Particle* p) const
-{
-    return (p->pos.x() >= bmin.x() && p->pos.x() <= bmax.x() &&
-            p->pos.y() >= bmin.y() && p->pos.y() <= bmax.y() &&
-            p->pos.z() >= bmin.z() && p->pos.z() <= bmax.z());
+bool ColliderAABB::isInside(const Particle* p) const {
+    double r = p->radius;
+    Vec3 pos = p->pos;
+
+    if (pos.x() + r < bmin.x() || pos.x() - r > bmax.x()) return false;
+    if (pos.y() + r < bmin.y() || pos.y() - r > bmax.y()) return false;
+    if (pos.z() + r < bmin.z() || pos.z() - r > bmax.z()) return false;
+
+    return true;
 }
+
 
 
 bool ColliderAABB::testCollision(const Particle* p, Collision& colInfo) const
 {
     Vec3 dir = p->pos - p->prevPos;
-    Vec3 minR = bmin - Vec3(p->radius, p->radius, p->radius);
-    Vec3 maxR = bmax + Vec3(p->radius, p->radius, p->radius);
+    Vec3 minR = bmin;
+    Vec3 maxR = bmax;
 
-    double t_enter = 0.0, t_exit = 1.0;
+    double tmin = 0.0;
+    double tmax = 1.0;
     int hitAxis = -1;
 
     for (int i = 0; i < 3; ++i) {
-        if (dir[i] == 0) continue;
+        if (std::abs(dir[i]) < 1e-8) {
+            if (p->prevPos[i] < minR[i] || p->prevPos[i] > maxR[i])
+                return false;
+            continue;
+        }
+
         double t1 = (minR[i] - p->prevPos[i]) / dir[i];
         double t2 = (maxR[i] - p->prevPos[i]) / dir[i];
-
         if (t1 > t2) std::swap(t1, t2);
-        if (t1 > t_enter) {
-            t_enter = t1;
+
+        if (t1 > tmin) {
+            tmin = t1;
             hitAxis = i;
         }
-        t_exit = std::min(t_exit, t2);
-        if (t_enter > t_exit)
-            return false;
+        if (t2 < tmax) {
+            tmax = t2;
+        }
+
+        if (tmin > tmax) return false;
     }
 
-    if (t_enter < 0.0 || t_enter > 1.0) return false;
+    if (tmin < 0.0 || tmin > 1.0) return false;
 
-    colInfo.position = p->prevPos + t_enter * dir;
-    colInfo.normal = Vec3(0, 0, 0);
+    colInfo.position = p->prevPos + tmin * dir;
+    colInfo.normal = Vec3(0,0,0);
 
     Vec3 dirN = dir.normalized();
     if (hitAxis == 0) colInfo.normal.x() = (dirN.x() > 0 ? -1 : 1);
@@ -134,6 +140,7 @@ bool ColliderAABB::testCollision(const Particle* p, Collision& colInfo) const
 
     return true;
 }
+
 
 GridId ColliderParticle::getGridId(const Vec3 &pos) const {
     return { (int)std::floor(pos.x()/cellSize),

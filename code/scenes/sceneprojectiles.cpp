@@ -100,6 +100,15 @@ void SceneProjectiles::initialize() {
     fGravity2->addInfluencedParticle(systemNumerical2.getParticle(0));
     systemNumerical2.addForce(fGravity2);
 
+    fDrag1 = new ForceDrag(widget->getKLinear(), widget->getKQuadratic());
+    fDrag1->addInfluencedParticle(systemNumerical1.getParticle(0));
+    systemNumerical1.addForce(fDrag1);
+
+    fDrag2 = new ForceDrag(widget->getKLinear(), widget->getKQuadratic());
+    fDrag2->addInfluencedParticle(systemNumerical2.getParticle(0));
+    systemNumerical1.addForce(fDrag2);
+
+
 }
 
 
@@ -141,6 +150,10 @@ void SceneProjectiles::reset() {
     fGravity1->setAcceleration(Vec3(0, -gravityAccel, 0));
     fGravity2->setAcceleration(Vec3(0, -gravityAccel, 0));
 
+    fDrag1->setDragCoefficients(widget->getKLinear(), widget->getKQuadratic());
+    fDrag2->setDragCoefficients(widget->getKLinear(), widget->getKQuadratic());
+
+
     // update system forces
     systemNumerical1.updateForces();
     systemNumerical2.updateForces();
@@ -181,7 +194,7 @@ void SceneProjectiles::update(double dt) {
         if (p->pos.y() < 0) {
             // resolve
             // TODO
-            p->pos += Vec3(0, p->radius, 0);
+            p->pos.y() = p->radius;
 
             // stop sim for this system
             system1active = false;
@@ -202,7 +215,7 @@ void SceneProjectiles::update(double dt) {
         if (p->pos.y() < 0) {
             // resolve
             // TODO
-            p->pos += Vec3(0, p->radius, 0);
+            p->pos.y() = p->radius;
 
             // stop sim for this system
             system1active = false;
@@ -224,7 +237,7 @@ void SceneProjectiles::update(double dt) {
         if (p->pos.y() < 0) {
             // resolve
             // TODO
-            p->pos += Vec3(0, p->radius, 0);
+            p->pos.y() = p->radius;
 
             // stop sim for this system
             system2active = false;

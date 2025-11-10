@@ -303,6 +303,33 @@ void SceneRope::mousePressed(const QMouseEvent* e, const Camera& cam)
 {
     grabX = e->pos().x();
     grabY = e->pos().y();
+
+    if (!(e->modifiers() & Qt::ControlModifier)) {
+        Vec3 rayDir = cam.getRayDir(grabX, grabY);
+        Vec3 origin = cam.getPos();
+
+        selectedParticle = -1;
+        double minDist = 1e9;
+        for (int i = 0; i < numParticles; i++) {
+            Particle* p = particles[i];
+
+            Vec3 op = p->pos - origin;
+            double t = op.dot(rayDir);
+            if (t < 0) continue;
+            Vec3 closest = origin + t * rayDir;
+            double dist = (p->pos - closest).norm();
+
+            if (dist < p->radius * 2.0 && dist < minDist) {
+                minDist = dist;
+                selectedParticle = i;
+            }
+        }
+
+        if (selectedParticle >= 0) {
+            cursorWorldPos = particles[selectedParticle]->pos;
+            draggingParticle = true;
+        }
+    }
 }
 
 
@@ -313,7 +340,12 @@ void SceneRope::mouseMoved(const QMouseEvent* e, const Camera& cam)
     grabX = e->pos().x();
     grabY = e->pos().y();
 
-    if (e->modifiers() & Qt::ControlModifier) {
+    if (selectedParticle >= 0) {
+        double d = -(particles[selectedParticle]->pos - cam.getPos()).dot(cam.zAxis());
+        Vec3 disp = cam.worldSpaceDisplacement(dx, -dy, d);
+        cursorWorldPos += disp;
+    }
+    else if (e->modifiers() & Qt::ControlModifier) {
         double d = -(colliderBall.getCenter() - cam.getPos()).dot(cam.zAxis());
         Vec3 disp = cam.worldSpaceDisplacement(dx, -dy, d);
         colliderBall.setCenter(colliderBall.getCenter() + disp);
@@ -323,4 +355,6 @@ void SceneRope::mouseMoved(const QMouseEvent* e, const Camera& cam)
 
 void SceneRope::mouseReleased(const QMouseEvent*, const Camera&)
 {
+    selectedParticle = -1;
+    draggingParticle = false;
 }

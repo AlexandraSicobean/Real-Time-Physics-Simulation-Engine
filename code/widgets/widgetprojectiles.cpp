@@ -62,3 +62,11 @@ void WidgetProjectiles::setSolver2(int idx) {
     ui->solver2->setCurrentIndex(idx);
 }
 
+double WidgetProjectiles::getKLinear() {
+    return ui->kLinearSpinBox->value();
+}
+
+double WidgetProjectiles::getKQuadratic() {
+    return ui->kQuadraticSpinBox->value();
+}
+

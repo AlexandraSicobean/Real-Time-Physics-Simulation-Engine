@@ -36,7 +36,6 @@ void IntegratorMidpoint::step(ParticleSystem &system, double dt) {
     Vecd x0 = system.getState();
     Vecd dx = system.getDerivative();
 
-    // Compute the state (pos, vel) at midpoint
     Vecd xmid = x0 + dx * dt / 2;
     system.setState(xmid);
     system.updateForces();
@@ -101,8 +100,8 @@ void IntegratorVerlet::step(ParticleSystem &system, double dt) {
     Vecd p_current = system.getPositions();
     Vecd p_previous = system.getPreviousPositions();
 
-    Vecd p_next = 2.0 * p_current - p_previous + dt * dt * a_current;
-    Vecd v_next = (p_next - p_previous) / (2.0 * dt);
+    Vecd p_next = p_current + kd * (p_current - p_previous) + dt * dt * a_current;
+    Vecd v_next = (p_next - p_current) / dt;
 
     system.setPreviousPositions(p_current);
     system.setPositions(p_next);
@@ -111,4 +110,3 @@ void IntegratorVerlet::step(ParticleSystem &system, double dt) {
     system.setTime(t0 + dt);
     system.updateForces();
 }
-

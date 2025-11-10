@@ -23,6 +23,8 @@ public:
     int getSolver2() const;
     bool renderSameZ() const;
     bool renderTrajectory() const;
+    double getKLinear();
+    double getKQuadratic();
 
     void setSolverTypes(const std::vector<std::string>& solvers);
     void setSolver1(int idx);

@@ -276,5 +276,9 @@ void SceneFountain::mouseMoved(const QMouseEvent* e, const Camera& cam)
                         colliderBox.getCenter() + disp,
                         colliderBox.getSize());
         }
+        else if (e->modifiers() & Qt::ControlModifier) {
+            colliderSphere.setCenter(colliderSphere.getCenter() + disp);
+
+        }
     }
 }

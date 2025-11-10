@@ -71,6 +71,7 @@ protected:
     Particle *anchor;
     int selectedParticle = -1;
     Vec3 cursorWorldPos;
+    bool draggingParticle = false;
 
     ColliderSphere colliderBall;
 

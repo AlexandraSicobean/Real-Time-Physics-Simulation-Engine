@@ -29,7 +29,6 @@ void SceneFluid::initialize()
 
     // Forces
     fGravity = new ForceConstAcceleration();
-    fGravity->setAcceleration(Vec3(0, -9.81, 0));
     system.addForce(fGravity);
 
     // Create cube (bath tub)
@@ -39,24 +38,26 @@ void SceneFluid::initialize()
 
     // Actual colliders of the 5 faces cube
     colliderBottom.setPlane(Vec3(0, 1, 0), 0.0);
-    colliderLeft.setPlane(Vec3(1, 0, 0), 25.0);
-    colliderRight.setPlane(Vec3(-1, 0, 0), 25.0);
-    colliderFront.setPlane(Vec3(0, 0, 1), 25.0);
-    colliderBack.setPlane(Vec3(0, 0, -1), 25.0);
+    colliderLeft.setPlane(Vec3(1, 0, 0), halfSize);
+    colliderRight.setPlane(Vec3(-1, 0, 0), halfSize);
+    colliderFront.setPlane(Vec3(0, 0, 1), halfSize);
+    colliderBack.setPlane(Vec3(0, 0, -1), halfSize);
 
     reset();
 }
 
 void SceneFluid::reset() {
+
     system.deleteParticles();
     fGravity->clearInfluencedParticles();
 
-    particleMass = restDensity * pow(spacing, 3);
+    double step = 2.0 * particleRadius;
+    smoothingRadius = 2.0 * step;
+    particleMass    = restDensity * pow(step, 3);
 
-    for (double x = -halfSize + spacing; x <= halfSize - spacing; x += spacing)
-        for (double y = spacing; y <= fillHeight; y += spacing)
-            for (double z = -halfSize + spacing; z <= halfSize - spacing; z += spacing) {
-
+    for (double x = -halfSize + step; x <= halfSize; x += step)
+        for (double y = step; y <= fillHeight; y += step)
+            for (double z = -halfSize + step; z <= halfSize; z += step) {
                 Particle* p = new Particle();
                 p->pos = Vec3(x, y, z);
                 p->prevPos = p->pos;
@@ -65,11 +66,10 @@ void SceneFluid::reset() {
                 p->color = Vec3(0.2, 0.4, 1.0);
                 p->mass = particleMass;
                 p->life = maxParticleLife;
-                p->isBoundary = false;
-
                 system.addParticle(p);
                 fGravity->addInfluencedParticle(p);
             }
+    std::cout << "Created " << system.getParticles().size() << " particles.\n";
 }
 
 void SceneFluid::updateSimParams()
@@ -96,16 +96,16 @@ void SceneFluid::update(double dt)
     // Handle wall collisions
     Collision col;
     for (Particle* p : system.getParticles()) {
-        // if (colliderBottom.testCollision(p, col))
-        //     colliderBottom.resolveCollision(p, col, 0.5, 0.3);
-        // if (colliderLeft.testCollision(p, col))
-        //     colliderLeft.resolveCollision(p, col, 0.5, 0.3);
-        // if (colliderRight.testCollision(p, col))
-        //     colliderRight.resolveCollision(p, col, 0.5, 0.3);
-        // if (colliderFront.testCollision(p, col))
-        //     colliderFront.resolveCollision(p, col, 0.5, 0.3);
-        // if (colliderBack.testCollision(p, col))
-        //     colliderBack.resolveCollision(p, col, 0.5, 0.3);
+        if (colliderBottom.testCollision(p, col))
+            colliderBottom.resolveCollision(p, col, 0.05, 0.3);
+        if (colliderLeft.testCollision(p, col))
+            colliderLeft.resolveCollision(p, col, 0.05, 0.3);
+        if (colliderRight.testCollision(p, col))
+            colliderRight.resolveCollision(p, col, 0.05, 0.3);
+        if (colliderFront.testCollision(p, col))
+            colliderFront.resolveCollision(p, col, 0.05, 0.3);
+        if (colliderBack.testCollision(p, col))
+            colliderBack.resolveCollision(p, col, 0.05, 0.3);
     }
 
     for (Particle* p : system.getParticles()) {
@@ -157,8 +157,8 @@ void SceneFluid::paint(const Camera& cam)
 
     // transform the cube
     QMatrix4x4 modelMat;
-    modelMat.translate(0, 25, 0);   // center of the box
-    modelMat.scale(25, 25, 25);   // make it wide and low
+    modelMat.translate(0, halfSize * sceneScale, 0);   // center of the box
+    modelMat.scale(halfSize * sceneScale, halfSize * sceneScale, halfSize * sceneScale);   // make it wide and low
     shader->setUniformValue("ModelMatrix", modelMat);
 
     // draw all faces
@@ -179,7 +179,19 @@ void SceneFluid::paint(const Camera& cam)
 
         shader->setUniformValue("ModelMatrix", modelMat);
 
-        shader->setUniformValue("matdiff", p->color[0], p->color[1], p->color[2]);
+        // Normalize deviation around rest density
+        double rel = (p->density - restDensity) / restDensity;
+
+        // Clamp to [-0.5, 0.5] to avoid extreme values
+        rel = std::max(-0.5, std::min(0.5, rel));
+
+        // Map to color: blue (low density) → white (medium) → red (high density)
+        float r = float(0.5 + rel * 2.0);
+        float g = float(0.5 - fabs(rel) * 1.0);
+        float b = float(1.0 - rel * 2.0);
+
+        shader->setUniformValue("matdiff", r, g, b);
+
         shader->setUniformValue("matspec", 1.0f, 1.0f, 1.0f);
         shader->setUniformValue("matshin", 80.0f);
 
@@ -194,27 +206,36 @@ void SceneFluid::mousePressed(const QMouseEvent*, const Camera&) {}
 void SceneFluid::mouseMoved(const QMouseEvent*, const Camera&) {}
 void SceneFluid::mouseReleased(const QMouseEvent*, const Camera&) {}
 
+double SceneFluid::poly6(double d) {
+    if (d >= smoothingRadius)
+        return 0.0;
+    double diff2 = smoothingRadius * smoothingRadius - d * d;
+    if (diff2 <= 0.0)
+        return 0.0;
+    return (315.0 / (64.0 * M_PI * pow(smoothingRadius, 9))) * pow(diff2, 3);
+}
+
+
 void SceneFluid::computeDensityAndPressure() {
     auto &particles = system.getParticles();
-    const double poly6Const = 315.0 / (64.0 * M_PI * pow(smoothingRadius, 9));
 
+    // Debug variables
     double totalDensity = 0.0, minDensity = 1e9, maxDensity = 0.0;
     double totalPressure = 0.0, minPressure = 1e9, maxPressure = 0.0;
     int count = 0;
 
-
-    for (Particle *p1: particles) {
-        p1-> density = 0.0;
-        for (Particle *p2: particles) {
+    for (Particle *p1 : particles) {
+        p1->density = p1->mass * poly6(0.0);
+        for (Particle *p2 : particles) {
             double d = (p1->pos - p2->pos).norm();
-
-            if (d * d < smoothingRadius * smoothingRadius)
-                p1->density += p2->mass * poly6Const * pow(smoothingRadius * smoothingRadius - d * d, 3);
+            // Compute density
+            p1->density += p2->mass * poly6(d);
         }
-        const double c = 0.2;
-        p1->pressure = c * c * (p1->density - restDensity);
 
-        // Debug
+        // Compute pressure
+        p1->pressure = speedOfSound * speedOfSound * (p1->density - restDensity);
+
+        // Debug prints
         totalDensity += p1->density;
         totalPressure += p1->pressure;
         minDensity = std::min(minDensity, p1->density);
@@ -224,7 +245,7 @@ void SceneFluid::computeDensityAndPressure() {
         count++;
     }
 
-    // Debug prints
+    double totalMass = particleMass * particles.size();
     if (count > 0) {
         std::cout << std::fixed
                   << "[SPH] Avg density: " << (totalDensity / count)
@@ -233,39 +254,47 @@ void SceneFluid::computeDensityAndPressure() {
                   << "  (Rest: " << restDensity << ")\n"
                   << "[SPH] Avg pressure: " << (totalPressure / count)
                   << "  Min: " << minPressure
-                  << "  Max: " << maxPressure << std::endl;
+                  << "  Max: " << maxPressure << '\n'
+                  << "[SPH] Total mass: " << totalMass
+                  << " for nr of particles:" << particles.size() << '\n';
     }
 }
 
+
+Vec3 SceneFluid::spikyGrad(Vec3 dir, double d) {
+    return -dir * (45 / (M_PI * std::pow(smoothingRadius, 6) * d))
+           * std::pow((smoothingRadius - d), 2);
+}
+
+double SceneFluid::viscosityLapl(double d){
+    return (45 / (M_PI * std::pow(smoothingRadius, 5)))*(1 - (d / smoothingRadius));
+}
 
 
 void SceneFluid::computeForces() {
     auto &particles = system.getParticles();
 
-    const double spikyGradCoeff = 45.0 / (M_PI * pow(smoothingRadius, 6));
-    const double viscLaplCoeff  = 45.0 / (M_PI * pow(smoothingRadius, 3));
-
     for (auto *p1 : particles) {
-        Vec3 acc_pressure(0, 0, 0);
-        Vec3 acc_viscosity(0, 0, 0);
+        Vec3 acc_pressure = Vec3(0, 0, 0);
+        Vec3 acc_viscosity = Vec3(0, 0, 0);
 
         for (auto *p2 : particles) {
-            if (p1->id == p2->id) continue;
+            if (p1->id == p2->id)
+                continue;
+            Vec3 dir = p1->pos - p2->pos;
+            double d = std::max(dir.norm(), 1e-6);
 
-            double d = (p1->pos - p2->pos).norm();
-            if (d > smoothingRadius || d < 1e-6) continue;
+            if (d > smoothingRadius)
+                continue;
 
-            Vec3 gradW = spikyGradCoeff * pow(smoothingRadius - d, 2) * (p1->pos - p2->pos).normalized();
-            double pij = (p1->pressure / (p1->density * p1->density)) +
-                              (p2->pressure / (p2->density * p2->density));
-            acc_pressure += -p2->mass * pij * gradW;
+            double pij = (p1->pressure / (p1->density * p1->density)) + (p2->pressure / (p2->density * p2->density));
+            pij = std::min(pij, 10.0);
 
-            Vec3 velDiff = p2->vel - p1->vel;
-            double lapW = viscLaplCoeff * (smoothingRadius - d);
-            acc_viscosity += viscosity * p2->mass * velDiff * lapW / (p1->density * p2->density);
+            acc_pressure += -p2->mass * pij * spikyGrad(dir, d);
+            Vec3 vij = (p2->vel - p1->vel)/(p1->density * p2->density);
+            acc_viscosity += viscosity * p2->mass * vij * viscosityLapl(d);
         }
-
-        Vec3 total_acc = acc_pressure + acc_viscosity;
+        Vec3 total_acc = acc_pressure + acc_viscosity + Vec3(0, -9.81, 0);
         p1->force = total_acc * p1->mass;
     }
 }

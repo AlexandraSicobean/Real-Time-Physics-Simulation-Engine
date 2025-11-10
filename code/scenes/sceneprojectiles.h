@@ -53,6 +53,8 @@ protected:
     ParticleSystem systemNumerical2;
     ForceConstAcceleration *fGravity1 = nullptr;
     ForceConstAcceleration *fGravity2 = nullptr;
+    ForceDrag *fDrag1 = nullptr;
+    ForceDrag *fDrag2 = nullptr;
     bool system1active, system2active;
 
     std::list<Vec3> trajectoryAnalytic;

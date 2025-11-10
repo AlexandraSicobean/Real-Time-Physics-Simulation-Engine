@@ -50,17 +50,19 @@ protected:
     IntegratorSymplecticEuler integrator;
     ForceConstAcceleration* fGravity = nullptr;
 
-    double restDensity      = 1000.0;
-    double viscosity        = 0.001;
-    double speedOfSound     = 5.0;
-    double particleRadius   = 0.02;
-    double spacing          = particleRadius * 2.1;
-    double smoothingRadius  = spacing * 2.0;
-    double particleMass     = 0.8 * restDensity * pow(spacing, 3);
+    double restDensity     = 1000.0;
+    double viscosity       = 0.02;
+    double speedOfSound    = 2.0;
 
-    double sceneScale       = 100.0;
-    double halfSize         = 0.25;
-    double fillHeight       = 0.25;
+    double particleRadius  = 0.00366;
+    double spacing         = 0.0058;
+    double smoothingRadius = 4.0 * particleRadius;
+
+    double particleMass = restDensity * pow(2.0 * particleRadius, 3);
+    double halfSize        = 0.08;
+    double fillHeight      = 0.08;
+    double sceneScale      = 500.0;
+
 
     // Colliders
     QOpenGLVertexArrayObject* vaoCube = nullptr;
@@ -78,6 +80,9 @@ protected:
 
     void computeDensityAndPressure();
     void computeForces();
+    double poly6(double d);
+    Vec3 spikyGrad(Vec3 dir, double d);
+    double viscosityLapl(double d);
 };
 
 #endif // SCENEFLUID_H

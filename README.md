@@ -11,6 +11,9 @@ The project implements simulations for:
 - Collision detection and response
 - Multiple numerical integrators
 
+## Demo Video
+[Watch demo video here](https://www.youtube.com/watch?v=yD6drU-uNPE)
+
 ## Numerical Integrators
 
 Implemented:

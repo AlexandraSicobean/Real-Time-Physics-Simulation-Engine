@@ -10,6 +10,7 @@ The project implements simulations for:
 - Fluid simulation (SPH)
 - Collision detection and response
 - Multiple numerical integrators
+
 [Watch demo video here](https://www.youtube.com/watch?v=yD6drU-uNPE)
 
 ## Numerical Integrators
